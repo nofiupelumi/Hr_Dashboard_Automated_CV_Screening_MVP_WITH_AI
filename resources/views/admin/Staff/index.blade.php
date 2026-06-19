@@ -1,9 +1,6 @@
-{{-- 
+{{--
     resources/views/admin/staff/index.blade.php
-    
-    Staff Profiles — List Page
-    Shows all employees in a searchable, filterable table.
-    Includes stat cards at the top showing totals.
+    Staff Profiles — List Page (card layout, no horizontal scroll)
 --}}
 @extends('layouts.app')
 
@@ -15,16 +12,12 @@
         <h1 class="text-3xl font-bold text-gray-900">Staff Profiles</h1>
         <p class="text-gray-500 mt-1">Central employee database</p>
     </div>
-    {{-- Button to add a new staff member manually --}}
     <a href="{{ route('admin.staff.create') }}" class="btn btn-primary">
         <i class="fas fa-plus mr-2"></i> Add Staff Member
     </a>
 </div>
 
-{{-- =====================================================
-    STAT CARDS — Quick summary numbers at the top
-    Data comes from $stats array in StaffProfileController@index
-===================================================== --}}
+{{-- STAT CARDS --}}
 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
 
     <div class="bg-white p-5 rounded-lg shadow flex items-center gap-4">
@@ -69,21 +62,16 @@
 
 </div>
 
-{{-- =====================================================
-    SEARCH & FILTER BAR
-    Submits as GET so filters stay in the URL
-===================================================== --}}
+{{-- SEARCH & FILTER BAR --}}
 <div class="bg-white rounded-lg shadow mb-6 p-4">
     <form method="GET" action="{{ route('admin.staff.index') }}" class="flex flex-wrap gap-3 items-end">
 
-        {{-- Text search --}}
         <div class="flex-1 min-w-48">
             <label class="form-label">Search</label>
             <input type="text" name="search" value="{{ request('search') }}"
                    placeholder="Name, email, ID, title…" class="form-input">
         </div>
 
-        {{-- Department filter — populated from distinct departments in the database --}}
         <div class="min-w-40">
             <label class="form-label">Department</label>
             <select name="department" class="form-select">
@@ -96,7 +84,6 @@
             </select>
         </div>
 
-        {{-- Status filter --}}
         <div class="min-w-36">
             <label class="form-label">Status</label>
             <select name="status" class="form-select">
@@ -112,7 +99,6 @@
             <i class="fas fa-search mr-2"></i> Search
         </button>
 
-        {{-- Show "Clear" button only if filters are active --}}
         @if(request()->hasAny(['search', 'department', 'status']))
             <a href="{{ route('admin.staff.index') }}" class="btn btn-outline">Clear</a>
         @endif
@@ -120,117 +106,85 @@
     </form>
 </div>
 
-{{-- =====================================================
-    STAFF TABLE
-===================================================== --}}
-<div class="bg-white rounded-lg shadow overflow-hidden">
+{{-- STAFF LIST — Card layout, click anywhere to view profile --}}
+<div class="space-y-4">
 
     @if($staff->count())
 
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
+        @foreach($staff as $member)
+        <a href="{{ route('admin.staff.show', $member) }}"
+           class="block bg-white rounded-lg shadow hover:shadow-md hover:border-primary-300
+                  border border-transparent transition-all duration-200 cursor-pointer">
+            <div class="p-5">
+                <div class="flex flex-wrap items-center justify-between gap-4">
 
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Job Title</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hired</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                    </tr>
-                </thead>
-
-                <tbody class="bg-white divide-y divide-gray-200">
-                    @foreach($staff as $member)
-                    <tr class="hover:bg-gray-50">
-
-                        {{-- Employee name + email + avatar --}}
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="flex items-center gap-3">
-                                {{-- Show photo if exists, otherwise show initials avatar --}}
-                                @if($member->profile_photo)
-                                    <img src="{{ Storage::url($member->profile_photo) }}"
-                                         class="w-9 h-9 rounded-full object-cover">
-                                @else
-                                    <div class="w-9 h-9 rounded-full bg-primary-100 text-primary-700
-                                                flex items-center justify-center font-semibold text-sm">
-                                        {{ $member->initials }}
-                                    </div>
-                                @endif
-                                <div>
-                                    <p class="font-medium text-gray-900 text-sm">{{ $member->full_name }}</p>
-                                    <p class="text-gray-500 text-xs">{{ $member->email }}</p>
-                                </div>
+                    {{-- Avatar + Name + Email --}}
+                    <div class="flex items-center gap-3 min-w-56">
+                        @if($member->profile_photo)
+                            <img src="{{ Storage::url($member->profile_photo) }}"
+                                 class="w-10 h-10 rounded-full object-cover flex-shrink-0">
+                        @else
+                            <div class="w-10 h-10 rounded-full bg-primary-100 text-primary-700
+                                        flex items-center justify-center font-bold text-sm flex-shrink-0">
+                                {{ $member->initials }}
                             </div>
-                        </td>
+                        @endif
+                        <div>
+                            <p class="font-semibold text-gray-900">{{ $member->full_name }}</p>
+                            <p class="text-xs text-gray-500">{{ $member->email }}</p>
+                        </div>
+                    </div>
 
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-mono">{{ $member->employee_id }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $member->department ?? '—' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $member->job_title ?? '—' }}</td>
+                    {{-- Employee ID --}}
+                    <div class="min-w-24">
+                        <p class="text-xs text-gray-400 uppercase mb-1">ID</p>
+                        <p class="text-sm font-mono text-gray-900">{{ $member->employee_id }}</p>
+                    </div>
 
-                        {{-- Employment type badge --}}
-                        <td class="px-6 py-4 whitespace-nowrap text-sm">
-                            <span class="badge badge-secondary">{{ $member->employment_type_label }}</span>
-                        </td>
+                    {{-- Department --}}
+                    <div class="min-w-32">
+                        <p class="text-xs text-gray-400 uppercase mb-1">Department</p>
+                        <p class="text-sm text-gray-900">{{ $member->department ?? '—' }}</p>
+                    </div>
 
-                        {{-- Status badge — colour changes based on status --}}
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            @if($member->status === 'active')
-                                <span class="badge badge-success">Active</span>
-                            @elseif($member->status === 'inactive')
-                                <span class="badge badge-secondary">Inactive</span>
-                            @elseif($member->status === 'suspended')
-                                <span class="badge badge-warning">Suspended</span>
-                            @else
-                                <span class="badge badge-danger">Terminated</span>
-                            @endif
-                        </td>
+                    {{-- Job Title --}}
+                    <div class="min-w-40">
+                        <p class="text-xs text-gray-400 uppercase mb-1">Job Title</p>
+                        <p class="text-sm text-gray-900">{{ $member->job_title ?? '—' }}</p>
+                    </div>
 
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ $member->date_of_hire ? $member->date_of_hire->format('M d, Y') : '—' }}
-                        </td>
+                    {{-- Employment Type --}}
+                    <div class="min-w-24">
+                        <p class="text-xs text-gray-400 uppercase mb-1">Type</p>
+                        <span class="badge badge-secondary">{{ $member->employment_type_label }}</span>
+                    </div>
 
-                        {{-- Action buttons: View, Edit, Delete --}}
-                        <td class="px-6 py-4 whitespace-nowrap text-sm">
-                            <div class="flex items-center gap-3">
-                                <a href="{{ route('admin.staff.show', $member) }}"
-                                   class="text-blue-600 hover:text-blue-800" title="View Profile">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <a href="{{ route('admin.staff.edit', $member) }}"
-                                   class="text-yellow-600 hover:text-yellow-800" title="Edit">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                {{-- Delete requires a POST form because HTML forms don't support DELETE --}}
-                                <form method="POST" action="{{ route('admin.staff.destroy', $member) }}"
-                                      onsubmit="return confirm('Delete {{ $member->full_name }}? This cannot be undone.')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="text-red-600 hover:text-red-800" title="Delete">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </form>
-                            </div>
-                        </td>
+                    {{-- Status + Arrow --}}
+                    <div class="flex items-center gap-3">
+                        @if($member->status === 'active')
+                            <span class="badge badge-success">Active</span>
+                        @elseif($member->status === 'inactive')
+                            <span class="badge badge-secondary">Inactive</span>
+                        @elseif($member->status === 'suspended')
+                            <span class="badge badge-warning">Suspended</span>
+                        @else
+                            <span class="badge badge-danger">Terminated</span>
+                        @endif
+                        <i class="fas fa-chevron-right text-gray-400 text-sm"></i>
+                    </div>
 
-                    </tr>
-                    @endforeach
-                </tbody>
+                </div>
+            </div>
+        </a>
+        @endforeach
 
-            </table>
-        </div>
-
-        {{-- Pagination links --}}
-        <div class="px-6 py-4 border-t border-gray-200">
+        {{-- Pagination --}}
+        <div class="mt-4">
             {{ $staff->links() }}
         </div>
 
     @else
-        {{-- Empty state — shown when no staff match the filters --}}
-        <div class="text-center py-16">
+        <div class="bg-white rounded-lg shadow text-center py-16">
             <i class="fas fa-users text-gray-300 text-5xl mb-4"></i>
             <h3 class="text-lg font-medium text-gray-900 mb-2">No staff profiles yet</h3>
             <p class="text-gray-500 mb-4">Add your first employee to get started.</p>
