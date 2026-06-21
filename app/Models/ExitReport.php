@@ -1,212 +1,212 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\Models;
 
-use App\Http\Controllers\Controller;
-use App\Models\ExitReport;
-use App\Models\StaffProfile;
-use Illuminate\Http\Request;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 /**
- * ExitReportController
+ * ExitReport Model
  *
- * Manages the offboarding process when staff leave the company:
- * - Exit interview details and feedback
- * - 5-point clearance checklist (IT, Finance, HR, Line Manager, Admin)
- * - Final settlement tracking
+ * Represents the offboarding process for a staff member leaving the company.
+ * Covers the exit interview, clearance checklist, and final settlement.
  *
- * Routes in web.php:
- *   Route::resource('exit-reports', ExitReportController::class)
+ * Example:
+ *   Staff: Naomi Nosa
+ *   Exit Type: Resignation
+ *   Last Working Day: 2026-07-31
+ *   Clearance: IT cleared, Finance cleared, HR cleared
+ *   Status: Completed
  */
-class ExitReportController extends Controller
+class ExitReport extends Model
 {
+    use HasFactory;
+
+    protected $table = 'exit_reports';
+
+    protected $fillable = [
+        // Who is leaving
+        'staff_profile_id',
+
+        // Exit details
+        'exit_type',          // resignation, termination, end_of_contract, retirement, redundancy
+        'resignation_date',   // When they gave notice
+        'last_working_day',   // Their actual last day
+        'notice_period_days', // Length of notice period
+
+        // Exit interview
+        'exit_interview_conducted', // boolean
+        'exit_interview_date',
+        'exit_interview_by',        // Who conducted it
+        'reason_for_leaving',       // Employee's stated reason
+        'feedback_company',         // Feedback about the company
+        'feedback_role',            // Feedback about their role
+        'would_recommend',          // Would they recommend the company (boolean)
+
+        // Clearance checklist — each is a boolean
+        'it_clearance',             // Laptop, accounts, access cards returned
+        'finance_clearance',        // No outstanding loans/advances
+        'hr_clearance',             // Documents handed over, ID returned
+        'line_manager_clearance',   // Handover of duties completed
+        'admin_clearance',          // Office items, keys returned
+
+        // Final settlement
+        'final_settlement_amount',  // Amount to be paid (could be 0)
+        'settlement_status',        // pending, processed, paid
+        'settlement_date',
+
+        // Overall status
+        'status',                   // in_progress, completed, cancelled
+
+        // Notes
+        'notes',
+        'processed_by',             // HR officer managing this exit
+    ];
+
+    protected $casts = [
+        'resignation_date'          => 'date',
+        'last_working_day'          => 'date',
+        'exit_interview_date'       => 'date',
+        'settlement_date'           => 'date',
+        'exit_interview_conducted'  => 'boolean',
+        'would_recommend'           => 'boolean',
+        'it_clearance'              => 'boolean',
+        'finance_clearance'         => 'boolean',
+        'hr_clearance'              => 'boolean',
+        'line_manager_clearance'    => 'boolean',
+        'admin_clearance'           => 'boolean',
+        'final_settlement_amount'   => 'decimal:2',
+    ];
+
+    // =========================================================
+    // RELATIONSHIPS
+    // =========================================================
+
     /**
-     * INDEX — List all exit reports with filters.
-     * URL: GET /admin/exit-reports
+     * Each exit report belongs to one staff member.
      */
-    public function index(Request $request)
+    public function staffProfile()
     {
-        $query = ExitReport::with('staffProfile');
+        return $this->belongsTo(StaffProfile::class);
+    }
 
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->whereHas('staffProfile', function ($q) use ($search) {
-                $q->where('full_name', 'like', "%$search%");
-            });
-        }
+    // =========================================================
+    // COMPUTED ATTRIBUTES
+    // =========================================================
 
-        if ($request->filled('exit_type')) {
-            $query->where('exit_type', $request->exit_type);
-        }
+    /**
+     * Human-readable label for the exit type.
+     */
+    public function getExitTypeLabelAttribute()
+    {
+        return match($this->exit_type) {
+            'resignation'      => 'Resignation',
+            'termination'      => 'Termination',
+            'end_of_contract'  => 'End of Contract',
+            'retirement'       => 'Retirement',
+            'redundancy'       => 'Redundancy',
+            default            => ucfirst(str_replace('_', ' ', $this->exit_type)),
+        };
+    }
 
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
+    /**
+     * Colour class for the status badge.
+     */
+    public function getStatusColorAttribute()
+    {
+        return match($this->status) {
+            'completed'   => 'badge-success',
+            'in_progress' => 'badge-warning',
+            'cancelled'   => 'badge-secondary',
+            default       => 'badge-secondary',
+        };
+    }
 
-        if ($request->filled('clearance')) {
-            if ($request->clearance === 'pending') {
-                $query->pendingClearance();
-            } elseif ($request->clearance === 'complete') {
-                $query->where('it_clearance', true)
-                      ->where('finance_clearance', true)
-                      ->where('hr_clearance', true)
-                      ->where('line_manager_clearance', true)
-                      ->where('admin_clearance', true);
-            }
-        }
+    /**
+     * Colour class for exit type badge (resignation vs termination etc).
+     */
+    public function getExitTypeColorAttribute()
+    {
+        return match($this->exit_type) {
+            'resignation'      => 'badge-info',
+            'termination'      => 'badge-danger',
+            'redundancy'       => 'badge-danger',
+            'retirement'       => 'badge-success',
+            'end_of_contract'  => 'badge-secondary',
+            default            => 'badge-secondary',
+        };
+    }
 
-        $exitReports = $query->orderBy('last_working_day', 'desc')->paginate(15)->withQueryString();
-
-        $stats = [
-            'total'              => ExitReport::count(),
-            'in_progress'        => ExitReport::where('status', 'in_progress')->count(),
-            'completed'          => ExitReport::where('status', 'completed')->count(),
-            'pending_clearance'  => ExitReport::pendingClearance()->count(),
-            'this_month'         => ExitReport::whereMonth('last_working_day', now()->month)
-                                              ->whereYear('last_working_day', now()->year)
-                                              ->count(),
+    /**
+     * How many of the 5 clearance checklist items are complete.
+     * Returns e.g. "3/5"
+     */
+    public function getClearanceProgressAttribute()
+    {
+        $items = [
+            $this->it_clearance,
+            $this->finance_clearance,
+            $this->hr_clearance,
+            $this->line_manager_clearance,
+            $this->admin_clearance,
         ];
-
-        return view('admin.exit-reports.index', compact('exitReports', 'stats'));
+        $completed = count(array_filter($items));
+        return $completed . '/' . count($items);
     }
 
     /**
-     * CREATE — Show form to start a new exit/offboarding process.
-     * URL: GET /admin/exit-reports/create
+     * Percentage of clearance checklist completed (for progress bars).
      */
-    public function create(Request $request)
+    public function getClearancePercentageAttribute()
     {
-        $staff = StaffProfile::orderBy('full_name')->get();
-
-        $selectedStaff = null;
-        if ($request->filled('staff_id')) {
-            $selectedStaff = StaffProfile::find($request->staff_id);
-        }
-
-        return view('admin.exit-reports.create', compact('staff', 'selectedStaff'));
-    }
-
-    /**
-     * STORE — Save a new exit report.
-     * URL: POST /admin/exit-reports
-     */
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'staff_profile_id'          => 'required|exists:staff_profiles,id',
-            'exit_type'                 => 'required|in:resignation,termination,end_of_contract,retirement,redundancy',
-            'resignation_date'          => 'nullable|date',
-            'last_working_day'          => 'required|date',
-            'notice_period_days'        => 'nullable|integer|min:0',
-            'exit_interview_date'       => 'nullable|date',
-            'exit_interview_by'         => 'nullable|string|max:255',
-            'reason_for_leaving'        => 'nullable|string|max:1000',
-            'feedback_company'          => 'nullable|string|max:1000',
-            'feedback_role'             => 'nullable|string|max:1000',
-            'final_settlement_amount'   => 'nullable|numeric|min:0',
-            'settlement_status'         => 'nullable|in:pending,processed,paid',
-            'settlement_date'           => 'nullable|date',
-            'status'                    => 'required|in:in_progress,completed,cancelled',
-            'notes'                     => 'nullable|string|max:1000',
-            'processed_by'              => 'nullable|string|max:255',
-        ]);
-
-        // Checkbox fields aren't sent in the request when unchecked,
-        // so we manually set them to true/false based on presence
-        $checkboxFields = [
-            'exit_interview_conducted', 'would_recommend',
-            'it_clearance', 'finance_clearance', 'hr_clearance',
-            'line_manager_clearance', 'admin_clearance',
+        $items = [
+            $this->it_clearance,
+            $this->finance_clearance,
+            $this->hr_clearance,
+            $this->line_manager_clearance,
+            $this->admin_clearance,
         ];
-        foreach ($checkboxFields as $field) {
-            $validated[$field] = $request->has($field);
-        }
-
-        $exitReport = ExitReport::create($validated);
-
-        // Mark the staff profile as terminated if the exit is already completed
-        if ($validated['status'] === 'completed') {
-            $exitReport->staffProfile->update(['status' => 'terminated']);
-        }
-
-        return redirect()->route('admin.exit-reports.index')
-            ->with('success', 'Exit report created successfully!');
+        $completed = count(array_filter($items));
+        return round(($completed / count($items)) * 100);
     }
 
     /**
-     * SHOW — View a single exit report in detail.
-     * URL: GET /admin/exit-reports/{id}
+     * Whether ALL clearance items are complete.
      */
-    public function show(ExitReport $exitReport)
+    public function getIsFullyClearedAttribute()
     {
-        $exitReport->load('staffProfile');
-        return view('admin.exit-reports.show', compact('exitReport'));
+        return $this->it_clearance
+            && $this->finance_clearance
+            && $this->hr_clearance
+            && $this->line_manager_clearance
+            && $this->admin_clearance;
     }
 
-    /**
-     * EDIT — Show edit form pre-filled with existing data.
-     * URL: GET /admin/exit-reports/{id}/edit
-     */
-    public function edit(ExitReport $exitReport)
+    // =========================================================
+    // SCOPES
+    // =========================================================
+
+    /** Only in-progress exits */
+    public function scopeInProgress($query)
     {
-        $staff = StaffProfile::orderBy('full_name')->get();
-        return view('admin.exit-reports.edit', compact('exitReport', 'staff'));
+        return $query->where('status', 'in_progress');
     }
 
-    /**
-     * UPDATE — Save changes to an exit report.
-     * Commonly used to tick off clearance checklist items over time.
-     * URL: PUT /admin/exit-reports/{id}
-     */
-    public function update(Request $request, ExitReport $exitReport)
+    /** Filter by exit type */
+    public function scopeOfType($query, $type)
     {
-        $validated = $request->validate([
-            'staff_profile_id'          => 'required|exists:staff_profiles,id',
-            'exit_type'                 => 'required|in:resignation,termination,end_of_contract,retirement,redundancy',
-            'resignation_date'          => 'nullable|date',
-            'last_working_day'          => 'required|date',
-            'notice_period_days'        => 'nullable|integer|min:0',
-            'exit_interview_date'       => 'nullable|date',
-            'exit_interview_by'         => 'nullable|string|max:255',
-            'reason_for_leaving'        => 'nullable|string|max:1000',
-            'feedback_company'          => 'nullable|string|max:1000',
-            'feedback_role'             => 'nullable|string|max:1000',
-            'final_settlement_amount'   => 'nullable|numeric|min:0',
-            'settlement_status'         => 'nullable|in:pending,processed,paid',
-            'settlement_date'           => 'nullable|date',
-            'status'                    => 'required|in:in_progress,completed,cancelled',
-            'notes'                     => 'nullable|string|max:1000',
-            'processed_by'              => 'nullable|string|max:255',
-        ]);
-
-        $checkboxFields = [
-            'exit_interview_conducted', 'would_recommend',
-            'it_clearance', 'finance_clearance', 'hr_clearance',
-            'line_manager_clearance', 'admin_clearance',
-        ];
-        foreach ($checkboxFields as $field) {
-            $validated[$field] = $request->has($field);
-        }
-
-        $exitReport->update($validated);
-
-        if ($validated['status'] === 'completed') {
-            $exitReport->staffProfile->update(['status' => 'terminated']);
-        }
-
-        return redirect()->route('admin.exit-reports.show', $exitReport)
-            ->with('success', 'Exit report updated successfully!');
+        return $query->where('exit_type', $type);
     }
 
-    /**
-     * DESTROY — Delete an exit report.
-     * URL: DELETE /admin/exit-reports/{id}
-     */
-    public function destroy(ExitReport $exitReport)
+    /** Exits where clearance is not yet fully complete */
+    public function scopePendingClearance($query)
     {
-        $exitReport->delete();
-
-        return redirect()->route('admin.exit-reports.index')
-            ->with('success', 'Exit report deleted successfully.');
+        return $query->where(function ($q) {
+            $q->where('it_clearance', false)
+              ->orWhere('finance_clearance', false)
+              ->orWhere('hr_clearance', false)
+              ->orWhere('line_manager_clearance', false)
+              ->orWhere('admin_clearance', false);
+        });
     }
 }
