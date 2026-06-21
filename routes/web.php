@@ -4,6 +4,9 @@
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
+| All HTTP routes for the HR Dashboard are defined here.
+| Add new module imports and resource routes as modules are completed.
+|--------------------------------------------------------------------------
 */
 
 use App\Http\Controllers\ProfileController;
@@ -12,16 +15,19 @@ use App\Http\Controllers\Admin\KeywordSetController;
 use App\Http\Controllers\Admin\ApplicationController;
 use App\Http\Controllers\Admin\StaffProfileController;   // Module 1: Staff Profiles
 use App\Http\Controllers\Admin\LeaveRequestController;   // Module 2: Annual Leave
-use App\Http\Controllers\Admin\KpiController;            // Module 3: KPI Tracking
+// KpiController intentionally omitted — module files not yet on this branch
 use App\Http\Controllers\Admin\ComplianceController;     // Module 4: Compliance
 use App\Http\Controllers\Admin\AppraisalController;      // Module 5: Probation & Appraisals
 use App\Http\Controllers\Admin\AttendanceController;     // Module 6: Absenteeism Tracking
+use App\Http\Controllers\Admin\ExitReportController;     // Module 7: Exit Reports
 use App\Http\Controllers\ApplicationSubmissionController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 
-// PUBLIC ROUTES
+// -----------------------------------------------------------------------
+// PUBLIC ROUTES — No login required
+// -----------------------------------------------------------------------
 Route::get('/', [ApplicationSubmissionController::class, 'index'])->name('application.form');
 Route::post('/application', [ApplicationSubmissionController::class, 'store'])->name('application.store');
 Route::get('/application/success/{application}', [ApplicationSubmissionController::class, 'success'])->name('application.success');
@@ -29,7 +35,9 @@ Route::get('/application/status/{application}', [ApplicationSubmissionController
 
 require __DIR__.'/auth.php';
 
-// ADMIN ROUTES
+// -----------------------------------------------------------------------
+// ADMIN ROUTES — Requires login + admin/HR role
+// -----------------------------------------------------------------------
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
 
     // Dashboard
@@ -48,8 +56,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/leave/{leave}/approve', [LeaveRequestController::class, 'approve'])->name('leave.approve');
     Route::post('/leave/{leave}/reject',  [LeaveRequestController::class, 'reject'])->name('leave.reject');
 
-    // Module 3: KPI Tracking
-    Route::resource('kpis', KpiController::class);
+    // Module 3: KPI Tracking — route disabled until KpiController & Kpi model are added to branch
+    // Route::resource('kpis', KpiController::class);
 
     // Module 4: Compliance Tracking
     Route::resource('compliance', ComplianceController::class);
@@ -59,9 +67,11 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     // Module 6: Absenteeism Tracking
     Route::resource('attendance', AttendanceController::class);
-    // Staff-specific attendance report
     Route::get('/attendance/staff/{staff}', [AttendanceController::class, 'staffReport'])
         ->name('attendance.staff-report');
+
+    // Module 7: Exit Reports
+    Route::resource('exit-reports', ExitReportController::class);
 
     // CV Applications
     Route::get('/applications', [ApplicationController::class, 'index'])->name('applications.index');
@@ -71,11 +81,9 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::delete('/applications/{application}', [ApplicationController::class, 'destroy'])->name('applications.destroy');
     Route::post('/applications/bulk-action', [ApplicationController::class, 'bulkAction'])->name('applications.bulk-action');
     Route::get('/applications/export/qualified', [ApplicationController::class, 'exportQualified'])->name('applications.export-qualified');
-
-    // Future modules:
-    // Route::resource('exit-reports', ExitReportController::class);
 });
 
+// Redirect after login
 Route::get('/dashboard', function () {
     if (auth()->user()->isAdmin() || auth()->user()->isHRManager()) {
         return redirect()->route('admin.dashboard');
@@ -83,6 +91,7 @@ Route::get('/dashboard', function () {
     return redirect()->route('application.form');
 })->middleware(['auth'])->name('dashboard');
 
+// Health check
 Route::get('/health', function () {
     return response()->json([
         'status'    => 'healthy',
