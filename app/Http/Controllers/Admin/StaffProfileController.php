@@ -90,7 +90,10 @@ class StaffProfileController extends Controller
         // Auto-generate the next employee ID (e.g. EMP0003)
         $nextId = StaffProfile::generateEmployeeId();
 
-        return view('admin.staff.create', compact('application', 'nextId'));
+        // Users not yet linked to a staff profile — for the "login account" dropdown
+        $availableUsers = \App\Models\User::whereDoesntHave('staffProfile')->orderBy('name')->get();
+
+        return view('admin.staff.create', compact('application', 'nextId', 'availableUsers'));
     }
 
     /**
@@ -147,6 +150,9 @@ class StaffProfileController extends Controller
             // Link to original application — optional
             'application_id'                 => 'nullable|exists:applications,id',
 
+            // Link to a login account so this staff member can use the staff portal
+            'user_id'                         => 'nullable|exists:users,id|unique:staff_profiles,user_id',
+
             // Profile photo — optional, must be an image under 2MB
             'profile_photo'                  => 'nullable|image|max:2048',
         ]);
@@ -182,7 +188,13 @@ class StaffProfileController extends Controller
      */
     public function edit(StaffProfile $staff)
     {
-        return view('admin.staff.edit', compact('staff'));
+        // Users not linked to anyone else, plus whoever is currently linked to this record
+        $availableUsers = \App\Models\User::where(function ($q) use ($staff) {
+                $q->whereDoesntHave('staffProfile')
+                  ->orWhere('id', $staff->user_id);
+            })->orderBy('name')->get();
+
+        return view('admin.staff.edit', compact('staff', 'availableUsers'));
     }
 
     /**
@@ -225,6 +237,7 @@ class StaffProfileController extends Controller
             'professional_memberships'       => 'nullable|string',
             'previous_roles'                 => 'nullable|string',
             'promotion_history'              => 'nullable|string',
+            'user_id'                         => 'nullable|exists:users,id|unique:staff_profiles,user_id,' . $staff->id,
             'profile_photo'                  => 'nullable|image|max:2048',
         ]);
 

@@ -21,6 +21,7 @@ use App\Http\Controllers\Admin\AppraisalController;      // Module 5: Probation 
 use App\Http\Controllers\Admin\AttendanceController;     // Module 6: Absenteeism Tracking
 use App\Http\Controllers\Admin\ExitReportController;     // Module 7: Exit Reports
 use App\Http\Controllers\ApplicationSubmissionController;
+use App\Http\Controllers\StaffPortalController;        // Staff self-service portal (My Leave / My Appraisals)
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
@@ -34,6 +35,23 @@ Route::get('/application/success/{application}', [ApplicationSubmissionControlle
 Route::get('/application/status/{application}', [ApplicationSubmissionController::class, 'status'])->name('application.status');
 
 require __DIR__.'/auth.php';
+
+// -----------------------------------------------------------------------
+// STAFF PORTAL ROUTES — Any logged in user. Non-HR/admin staff land here
+// and can ONLY ever see/act on their own Leave and Appraisal records.
+// (HR/admin can also open these, but they normally use /admin instead.)
+// -----------------------------------------------------------------------
+Route::middleware(['auth'])->prefix('my')->name('my.')->group(function () {
+    Route::get('/', [StaffPortalController::class, 'dashboard'])->name('dashboard');
+
+    Route::get('/leave', [StaffPortalController::class, 'leaveIndex'])->name('leave.index');
+    Route::get('/leave/create', [StaffPortalController::class, 'leaveCreate'])->name('leave.create');
+    Route::post('/leave', [StaffPortalController::class, 'leaveStore'])->name('leave.store');
+    Route::get('/leave/{leave}', [StaffPortalController::class, 'leaveShow'])->name('leave.show');
+
+    Route::get('/appraisals', [StaffPortalController::class, 'appraisalIndex'])->name('appraisals.index');
+    Route::get('/appraisals/{appraisal}', [StaffPortalController::class, 'appraisalShow'])->name('appraisals.show');
+});
 
 // -----------------------------------------------------------------------
 // ADMIN ROUTES — Requires login + admin/HR role
@@ -88,7 +106,7 @@ Route::get('/dashboard', function () {
     if (auth()->user()->isAdmin() || auth()->user()->isHRManager()) {
         return redirect()->route('admin.dashboard');
     }
-    return redirect()->route('application.form');
+    return redirect()->route('my.dashboard');
 })->middleware(['auth'])->name('dashboard');
 
 // Health check

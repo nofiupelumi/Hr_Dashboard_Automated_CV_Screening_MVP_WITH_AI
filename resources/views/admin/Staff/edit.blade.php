@@ -63,6 +63,23 @@
                 @enderror
             </div>
 
+            {{-- Login account link — lets this staff member use the staff portal --}}
+            <div>
+                <label class="form-label">Linked Login Account</label>
+                <select name="user_id" class="form-select @error('user_id') border-red-500 @enderror">
+                    <option value="">No login account (HR-managed only)</option>
+                    @foreach($availableUsers as $user)
+                        <option value="{{ $user->id }}" {{ old('user_id', $staff->user_id) == $user->id ? 'selected' : '' }}>
+                            {{ $user->name }} ({{ $user->email }})
+                        </option>
+                    @endforeach
+                </select>
+                <p class="text-gray-500 text-xs mt-1">Link this staff record to a login account so they can view their own Leave and Appraisals.</p>
+                @error('user_id')
+                    <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                @enderror
+            </div>
+
             <div>
                 <label class="form-label">Gender</label>
                 <select name="gender" class="form-select">
