@@ -21,7 +21,9 @@ use App\Http\Controllers\Admin\AppraisalController;      // Module 5: Probation 
 use App\Http\Controllers\Admin\AttendanceController;     // Module 6: Absenteeism Tracking
 use App\Http\Controllers\Admin\ExitReportController;     // Module 7: Exit Reports
 use App\Http\Controllers\ApplicationSubmissionController;
-use App\Http\Controllers\StaffPortalController;        // Staff self-service portal (My Leave / My Appraisals)
+use App\Http\Controllers\Admin\AppraisalScheduleController;
+use App\Http\Controllers\StaffPortalController;        // Staff self-service portal (My 
+// Leave / My Appraisals)
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
@@ -51,6 +53,8 @@ Route::middleware(['auth'])->prefix('my')->name('my.')->group(function () {
 
     Route::get('/appraisals', [StaffPortalController::class, 'appraisalIndex'])->name('appraisals.index');
     Route::get('/appraisals/{appraisal}', [StaffPortalController::class, 'appraisalShow'])->name('appraisals.show');
+    Route::get('/appraisals/{appraisal}/fill', [StaffPortalController::class, 'appraisalFill'])->name('appraisals.fill');
+    Route::post('/appraisals/{appraisal}/save', [StaffPortalController::class, 'appraisalSave'])->name('appraisals.save');
 });
 
 // -----------------------------------------------------------------------
@@ -81,7 +85,16 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::resource('compliance', ComplianceController::class);
 
     // Module 5: Probation & Appraisals
+    // Route::resource('appraisals', AppraisalController::class);
+
+    // Module 5: Probation & Appraisals
     Route::resource('appraisals', AppraisalController::class);
+    Route::post('/appraisals/{appraisal}/send', [AppraisalController::class, 'sendForm'])->name('appraisals.send');
+
+    // Appraisal Schedule (yearly timetable)
+    Route::get('/appraisal-schedule', [AppraisalScheduleController::class, 'index'])->name('appraisal-schedule.index');
+    Route::post('/appraisal-schedule', [AppraisalScheduleController::class, 'store'])->name('appraisal-schedule.store');
+    Route::delete('/appraisal-schedule/{appraisalSchedule}', [AppraisalScheduleController::class, 'destroy'])->name('appraisal-schedule.destroy');
 
     // Module 6: Absenteeism Tracking
     Route::resource('attendance', AttendanceController::class);

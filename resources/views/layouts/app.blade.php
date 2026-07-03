@@ -93,10 +93,24 @@
                             </li>
 
                             <!-- MODULE 5: Appraisals -->
+                            <!-- <li>
+                                <a href="{{ route('admin.appraisals.index') }}"
+                                   class="nav-link {{ request()->routeIs('admin.appraisals.*') ? 'active' : '' }}">
+                                    <i class="fas fa-clipboard-list mr-3"></i> Appraisals
+                                </a>
+                            </li> -->
+
+                            <!-- MODULE 5: Appraisals -->
                             <li>
                                 <a href="{{ route('admin.appraisals.index') }}"
                                    class="nav-link {{ request()->routeIs('admin.appraisals.*') ? 'active' : '' }}">
                                     <i class="fas fa-clipboard-list mr-3"></i> Appraisals
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{{ route('admin.appraisal-schedule.index') }}"
+                                   class="nav-link {{ request()->routeIs('admin.appraisal-schedule.*') ? 'active' : '' }}">
+                                    <i class="fas fa-calendar-check mr-3"></i> Appraisal Schedule
                                 </a>
                             </li>
 

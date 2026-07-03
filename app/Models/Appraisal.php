@@ -5,22 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-/**
- * Appraisal Model
- *
- * Represents a probation review or performance appraisal for a staff member.
- * Can be used for:
- * - Probation reviews (3 month, 6 month end of probation)
- * - Annual performance appraisals
- * - Mid-year reviews
- *
- * Example:
- *   Staff: Naomi Nosa
- *   Type: Probation Review (3 months)
- *   Due: 2026-09-01
- *   Rating: Satisfactory
- *   Status: Completed
- */
 class Appraisal extends Model
 {
     use HasFactory;
@@ -28,52 +12,77 @@ class Appraisal extends Model
     protected $table = 'appraisals';
 
     protected $fillable = [
-        // Who this appraisal is for
         'staff_profile_id',
-
-        // Type of appraisal
-        'appraisal_type',   // probation_3month, probation_6month, annual, mid_year, pip
-
-        // Dates
-        'due_date',         // When the appraisal should happen
-        'completed_date',   // When it was actually completed
-
-        // Who conducts the appraisal
-        'reviewer_name',    // Line manager or HR officer
-        'reviewer_role',    // e.g. "Line Manager", "HR Manager"
-
-        // Appraisal outcome
-        'overall_rating',   // excellent, good, satisfactory, needs_improvement, unsatisfactory
-        'status',           // pending, in_progress, completed, cancelled
-
-        // Probation outcome (only relevant for probation types)
-        'probation_outcome', // confirmed, extended, terminated
-
-        // Evaluation sections — text areas for HR to fill in
-        'performance_summary',   // Overall performance summary
-        'strengths',             // What the employee does well
-        'areas_for_improvement', // Areas needing development
-        'goals_next_period',     // Goals set for next review period
-        'employee_comments',     // Employee's own comments on the review
-        'reviewer_comments',     // Reviewer's final comments
-
-        // Reminder tracking
-        'reminder_sent_at',      // When the last reminder was sent
+        'appraisal_type',
+        'appraisal_year',
+        'form_type',
+        'due_date',
+        'completed_date',
+        'reviewer_name',
+        'reviewer_role',
+        'overall_rating',
+        'status',
+        'probation_outcome',
+        'performance_summary',
+        'strengths',
+        'areas_for_improvement',
+        'goals_next_period',
+        'employee_comments',
+        'reviewer_comments',
+        'reminder_sent_at',
+        'sent_to_employee_at',
+        'self_mission_statement',
+        'self_duties_understanding',
+        'self_job_achievements',
+        'self_other_achievements',
+        'self_likes_dislikes',
+        'self_most_difficult',
+        'self_improvement_actions',
+        'prob_professionalism','prob_professionalism_comments',
+        'prob_crisis_management','prob_crisis_management_comments',
+        'prob_quality_of_work','prob_quality_of_work_comments',
+        'prob_dependability','prob_dependability_comments',
+        'prob_team_spirit','prob_team_spirit_comments',
+        'prob_result_orientation','prob_result_orientation_comments',
+        'prob_followership','prob_followership_comments',
+        'prob_self_discipline','prob_self_discipline_comments',
+        'prob_organisation_planning','prob_organisation_planning_comments',
+        'prob_self_development','prob_self_development_comments',
+        'prob_skill_deficiencies',
+        'prob_constraints',
+        'prob_appraisee_comments',
+        'prob_observer_comments',
+        'prob_hod_comments',
+        'edit_history',
     ];
 
     protected $casts = [
-        'due_date'          => 'date',
-        'completed_date'    => 'date',
-        'reminder_sent_at'  => 'datetime',
+        'due_date'            => 'date',
+        'completed_date'      => 'date',
+        'reminder_sent_at'    => 'datetime',
+        'sent_to_employee_at' => 'datetime',
+        'edit_history'        => 'array',
     ];
+
+    /**
+     * Append an entry to the edit history log.
+     * Called any time the form is saved.
+     */
+    public function recordEdit(string $editedBy, array $changed = []): void
+    {
+        $history   = $this->edit_history ?? [];
+        $history[] = [
+            'edited_by' => $editedBy,
+            'timestamp' => now()->toDateTimeString(),
+            'changes'   => $changed,
+        ];
+        $this->edit_history = $history;
+    }
 
     // =========================================================
     // RELATIONSHIPS
     // =========================================================
 
-    /**
-     * Each appraisal belongs to one staff member.
-     */
     public function staffProfile()
     {
         return $this->belongsTo(StaffProfile::class);
@@ -83,9 +92,6 @@ class Appraisal extends Model
     // COMPUTED ATTRIBUTES
     // =========================================================
 
-    /**
-     * Human-readable label for the appraisal type.
-     */
     public function getAppraisalTypeLabelAttribute()
     {
         return match($this->appraisal_type) {
@@ -98,28 +104,17 @@ class Appraisal extends Model
         };
     }
 
-    /**
-     * Whether this is a probation-type appraisal.
-     * Used to show/hide the probation outcome field.
-     */
     public function getIsProbationAttribute()
     {
         return in_array($this->appraisal_type, ['probation_3month', 'probation_6month']);
     }
 
-    /**
-     * Number of days until the due date.
-     * Negative if overdue.
-     */
     public function getDaysUntilDueAttribute()
     {
         if (!$this->due_date) return null;
         return now()->startOfDay()->diffInDays($this->due_date, false);
     }
 
-    /**
-     * Whether the appraisal is overdue (due date passed, not completed).
-     */
     public function getIsOverdueAttribute()
     {
         return $this->status !== 'completed'
@@ -127,24 +122,18 @@ class Appraisal extends Model
             && $this->due_date->isPast();
     }
 
-    /**
-     * Colour class for the overall rating badge.
-     */
     public function getRatingColorAttribute()
     {
         return match($this->overall_rating) {
-            'excellent'          => 'badge-success',
-            'good'               => 'badge-info',
-            'satisfactory'       => 'badge-warning',
-            'needs_improvement'  => 'badge-danger',
-            'unsatisfactory'     => 'badge-danger',
-            default              => 'badge-secondary',
+            'excellent'         => 'badge-success',
+            'good'              => 'badge-info',
+            'satisfactory'      => 'badge-warning',
+            'needs_improvement' => 'badge-danger',
+            'unsatisfactory'    => 'badge-danger',
+            default             => 'badge-secondary',
         };
     }
 
-    /**
-     * Colour class for the status badge.
-     */
     public function getStatusColorAttribute()
     {
         return match($this->status) {
@@ -160,13 +149,11 @@ class Appraisal extends Model
     // SCOPES
     // =========================================================
 
-    /** Only pending appraisals */
     public function scopePending($query)
     {
         return $query->where('status', 'pending');
     }
 
-    /** Appraisals due within the next N days */
     public function scopeDueSoon($query, $days = 14)
     {
         return $query->whereIn('status', ['pending', 'in_progress'])
@@ -174,7 +161,6 @@ class Appraisal extends Model
             ->whereDate('due_date', '<=', now()->addDays($days));
     }
 
-    /** Overdue appraisals */
     public function scopeOverdue($query)
     {
         return $query->whereIn('status', ['pending', 'in_progress'])
