@@ -144,4 +144,24 @@ class StaffPortalController extends Controller
         return redirect()->route('my.appraisals.show', $appraisal)
             ->with('success', 'Your self-evaluation has been saved. ' . now()->format('M d, Y g:i A'));
     }
+
+    // =========================================================
+    // EMPLOYEE RULES (Handbook + Code of Conduct)
+    // =========================================================
+
+    public function employeeRules()
+    {
+        $this->staffProfileOrFail();
+
+        $handbook      = \App\Models\EmployeeRule::where('type', 'handbook')->latest()->get();
+        $codeOfConduct = \App\Models\EmployeeRule::where('type', 'code_of_conduct')->latest()->get();
+
+        return view('my.employee-rules', compact('handbook', 'codeOfConduct'));
+    }
+
+    public function employeeRulesDownload(\App\Models\EmployeeRule $employeeRule)
+    {
+        $this->staffProfileOrFail();
+        return response()->file(storage_path('app/public/' . $employeeRule->file_path));
+    }
 }

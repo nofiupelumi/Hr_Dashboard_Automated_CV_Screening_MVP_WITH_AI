@@ -136,6 +136,22 @@
                                 </a>
                             </li>
 
+                            <!-- Employee Rules PDF -->
+                            <li>
+                                <a href="{{ route('admin.employee-rules.index') }}"
+                                   class="nav-link {{ request()->routeIs('admin.employee-rules.*') ? 'active' : '' }}">
+                                    <i class="fas fa-file-pdf mr-3"></i> Employee Rules PDF
+                                </a>
+                            </li>
+
+                            <!-- Pension Records -->
+                            <li>
+                                <a href="{{ route('admin.pension.index') }}"
+                                   class="nav-link {{ request()->routeIs('admin.pension.*') ? 'active' : '' }}">
+                                    <i class="fas fa-shield-alt mr-3"></i> Pension
+                                </a>
+                            </li>
+
                             <li>
                                 <form method="POST" action="{{ route('logout') }}">
                                     @csrf
@@ -179,6 +195,13 @@
                                 <a href="{{ route('my.appraisals.index') }}"
                                    class="nav-link {{ request()->routeIs('my.appraisals.*') ? 'active' : '' }}">
                                     <i class="fas fa-clipboard-list mr-3"></i> My Appraisals
+                                </a>
+                            </li>
+
+                            <li>
+                                <a href="{{ route('my.employee-rules') }}"
+                                   class="nav-link {{ request()->routeIs('my.employee-rules*') ? 'active' : '' }}">
+                                    <i class="fas fa-file-pdf mr-3"></i> Employee Rules PDF
                                 </a>
                             </li>
 
