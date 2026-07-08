@@ -226,6 +226,11 @@ class StaffProfile extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function pensionRecord()
+{
+    return $this->hasOne(PensionRecord::class);
+}
+
     /** All leave requests submitted for this staff member. */
     public function leaveRequests()
     {

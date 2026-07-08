@@ -1,7 +1,7 @@
 <?php
 
-namespace App\Http\Controllers;
-
+// namespace App\Http\Controllers;
+namespace App\Http\Controllers\Admin;
 use App\Models\LeaveRequest;
 use Illuminate\Http\Request;
 
