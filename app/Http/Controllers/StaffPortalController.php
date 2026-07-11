@@ -10,47 +10,32 @@ class StaffPortalController extends Controller
     private function staffProfileOrFail()
     {
         $staffProfile = auth()->user()->staffProfile;
-
-        abort_if(
-            !$staffProfile,
-            403,
-            'Your account is not yet linked to a staff record. Please contact HR.'
-        );
-
+        abort_if(!$staffProfile, 403, 'Your account is not yet linked to a staff record. Please contact HR.');
         return $staffProfile;
     }
 
     public function dashboard()
     {
         $staffProfile = $this->staffProfileOrFail();
-
         $leaveStats = [
             'pending'  => $staffProfile->leaveRequests()->where('status', 'pending')->count(),
             'approved' => $staffProfile->leaveRequests()->where('status', 'approved')->count(),
             'rejected' => $staffProfile->leaveRequests()->where('status', 'rejected')->count(),
         ];
-
         $latestAppraisal = $staffProfile->appraisals()->latest('due_date')->first();
-
         return view('my.dashboard', compact('staffProfile', 'leaveStats', 'latestAppraisal'));
     }
-
-    // =========================================================
-    // MY LEAVE
-    // =========================================================
 
     public function leaveIndex()
     {
         $staffProfile = $this->staffProfileOrFail();
         $leaves = $staffProfile->leaveRequests()->latest()->paginate(10);
-
         $stats = [
             'total'    => $staffProfile->leaveRequests()->count(),
             'pending'  => $staffProfile->leaveRequests()->where('status', 'pending')->count(),
             'approved' => $staffProfile->leaveRequests()->where('status', 'approved')->count(),
             'rejected' => $staffProfile->leaveRequests()->where('status', 'rejected')->count(),
         ];
-
         return view('my.leave.index', compact('leaves', 'stats'));
     }
 
@@ -63,7 +48,6 @@ class StaffPortalController extends Controller
     public function leaveStore(Request $request)
     {
         $staffProfile = $this->staffProfileOrFail();
-
         $validated = $request->validate([
             'leave_type'    => 'required|in:annual,sick,casual,maternity,paternity,unpaid',
             'start_date'    => 'required|date',
@@ -72,19 +56,12 @@ class StaffPortalController extends Controller
             'approver_type' => 'required|in:line_manager,hr',
             'approver_name' => 'required|string|max:255',
         ]);
-
         $validated['staff_profile_id'] = $staffProfile->id;
-        $validated['total_days']       = LeaveRequest::calculateWorkingDays(
-            $validated['start_date'],
-            $validated['end_date']
-        );
-        $validated['status']       = 'pending';
-        $validated['submitted_by'] = 'staff';
-
+        $validated['total_days']       = LeaveRequest::calculateWorkingDays($validated['start_date'], $validated['end_date']);
+        $validated['status']           = 'pending';
+        $validated['submitted_by']     = 'staff';
         LeaveRequest::create($validated);
-
-        return redirect()->route('my.leave.index')
-            ->with('success', 'Your leave request has been submitted and is awaiting approval.');
+        return redirect()->route('my.leave.index')->with('success', 'Leave request submitted and awaiting approval.');
     }
 
     public function leaveShow(LeaveRequest $leave)
@@ -93,10 +70,6 @@ class StaffPortalController extends Controller
         abort_unless($leave->staff_profile_id === $staffProfile->id, 403);
         return view('my.leave.show', compact('leave'));
     }
-
-    // =========================================================
-    // MY APPRAISALS
-    // =========================================================
 
     public function appraisalIndex()
     {
@@ -125,7 +98,6 @@ class StaffPortalController extends Controller
         $staffProfile = $this->staffProfileOrFail();
         abort_unless($appraisal->staff_profile_id === $staffProfile->id, 403);
         abort_unless($appraisal->sent_to_employee_at, 403, 'This form has not been sent to you yet.');
-
         $validated = $request->validate([
             'self_mission_statement'    => 'nullable|string',
             'self_duties_understanding' => 'nullable|string',
@@ -136,26 +108,18 @@ class StaffPortalController extends Controller
             'self_improvement_actions'  => 'nullable|string',
             'employee_comments'         => 'nullable|string',
         ]);
-
         $appraisal->recordEdit($staffProfile->full_name . ' (employee)');
         $appraisal->fill($validated);
         $appraisal->save();
-
         return redirect()->route('my.appraisals.show', $appraisal)
-            ->with('success', 'Your self-evaluation has been saved. ' . now()->format('M d, Y g:i A'));
+            ->with('success', 'Self-evaluation saved. ' . now()->format('M d, Y g:i A'));
     }
-
-    // =========================================================
-    // EMPLOYEE RULES (Handbook + Code of Conduct)
-    // =========================================================
 
     public function employeeRules()
     {
         $this->staffProfileOrFail();
-
         $handbook      = \App\Models\EmployeeRule::where('type', 'handbook')->latest()->get();
         $codeOfConduct = \App\Models\EmployeeRule::where('type', 'code_of_conduct')->latest()->get();
-
         return view('my.employee-rules', compact('handbook', 'codeOfConduct'));
     }
 

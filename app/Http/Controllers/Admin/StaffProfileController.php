@@ -1,167 +1,191 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Admin;
 
-use App\Models\LeaveRequest;
+use App\Http\Controllers\Controller;
+use App\Models\StaffProfile;
+use App\Models\Application;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
-class StaffPortalController extends Controller
+class StaffProfileController extends Controller
 {
-    private function staffProfileOrFail()
+    public function index(Request $request)
     {
-        $staffProfile = auth()->user()->staffProfile;
+        $query = StaffProfile::query();
 
-        abort_if(
-            !$staffProfile,
-            403,
-            'Your account is not yet linked to a staff record. Please contact HR.'
-        );
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(function ($q) use ($s) {
+                $q->where('full_name',   'like', "%$s%")
+                  ->orWhere('employee_id', 'like', "%$s%")
+                  ->orWhere('email',       'like', "%$s%")
+                  ->orWhere('job_title',   'like', "%$s%");
+            });
+        }
 
-        return $staffProfile;
-    }
+        if ($request->filled('department')) {
+            $query->where('department', $request->department);
+        }
 
-    public function dashboard()
-    {
-        $staffProfile = $this->staffProfileOrFail();
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
 
-        $leaveStats = [
-            'pending'  => $staffProfile->leaveRequests()->where('status', 'pending')->count(),
-            'approved' => $staffProfile->leaveRequests()->where('status', 'approved')->count(),
-            'rejected' => $staffProfile->leaveRequests()->where('status', 'rejected')->count(),
-        ];
-
-        $latestAppraisal = $staffProfile->appraisals()->latest('due_date')->first();
-
-        return view('my.dashboard', compact('staffProfile', 'leaveStats', 'latestAppraisal'));
-    }
-
-    // =========================================================
-    // MY LEAVE
-    // =========================================================
-
-    public function leaveIndex()
-    {
-        $staffProfile = $this->staffProfileOrFail();
-        $leaves = $staffProfile->leaveRequests()->latest()->paginate(10);
+        $staff       = $query->latest()->paginate(15)->withQueryString();
+        $departments = StaffProfile::distinct()->pluck('department')->filter()->sort()->values();
 
         $stats = [
-            'total'    => $staffProfile->leaveRequests()->count(),
-            'pending'  => $staffProfile->leaveRequests()->where('status', 'pending')->count(),
-            'approved' => $staffProfile->leaveRequests()->where('status', 'approved')->count(),
-            'rejected' => $staffProfile->leaveRequests()->where('status', 'rejected')->count(),
+            'total'      => StaffProfile::count(),
+            'active'     => StaffProfile::where('status', 'active')->count(),
+            'inactive'   => StaffProfile::where('status', '!=', 'active')->count(),
+            'this_month' => StaffProfile::whereMonth('created_at', now()->month)->count(),
         ];
 
-        return view('my.leave.index', compact('leaves', 'stats'));
+        return view('admin.staff.index', compact('staff', 'departments', 'stats'));
     }
 
-    public function leaveCreate()
+    public function create(Request $request)
     {
-        $this->staffProfileOrFail();
-        return view('my.leave.create');
+        $application    = null;
+        if ($request->filled('from_application')) {
+            $application = Application::find($request->from_application);
+        }
+
+        $nextId         = StaffProfile::generateEmployeeId();
+        $availableUsers = \App\Models\User::whereDoesntHave('staffProfile')->orderBy('name')->get();
+
+        return view('admin.staff.create', compact('application', 'nextId', 'availableUsers'));
     }
 
-    public function leaveStore(Request $request)
+    public function store(Request $request)
     {
-        $staffProfile = $this->staffProfileOrFail();
-
         $validated = $request->validate([
-            'leave_type'    => 'required|in:annual,sick,casual,maternity,paternity,unpaid',
-            'start_date'    => 'required|date',
-            'end_date'      => 'required|date|after_or_equal:start_date',
-            'reason'        => 'nullable|string|max:1000',
-            'approver_type' => 'required|in:line_manager,hr',
-            'approver_name' => 'required|string|max:255',
+            'full_name'                      => 'required|string|max:255',
+            'employee_id'                    => 'required|string|unique:staff_profiles,employee_id',
+            'email'                          => 'required|email|unique:staff_profiles,email',
+            'gender'                         => 'nullable|in:male,female,other',
+            'date_of_birth'                  => 'nullable|date|before:today',
+            'marital_status'                 => 'nullable|in:single,married,divorced,widowed',
+            'nationality'                    => 'nullable|string|max:100',
+            'phone_number'                   => 'nullable|string|max:20',
+            'residential_address'            => 'nullable|string',
+            'emergency_contact_name'         => 'nullable|string|max:255',
+            'emergency_contact_phone'        => 'nullable|string|max:20',
+            'emergency_contact_relationship' => 'nullable|string|max:100',
+            'job_title'                      => 'nullable|string|max:255',
+            'department'                     => 'nullable|string|max:100',
+            'location'                       => 'nullable|string|max:255',
+            'employment_type'                => 'nullable|in:full_time,part_time,contract,intern',
+            'date_of_hire'                   => 'nullable|date',
+            'status'                         => 'nullable|in:active,inactive,suspended,terminated',
+            'line_manager'                   => 'nullable|string|max:255',
+            'department_head'                => 'nullable|string|max:255',
+            'national_id'                    => 'nullable|string|max:100',
+            'tax_id'                         => 'nullable|string|max:100',
+            'pension_details'                => 'nullable|string|max:255',
+            'salary'                         => 'nullable|numeric|min:0',
+            'bank_name'                      => 'nullable|string|max:100',
+            'bank_account_number'            => 'nullable|string|max:50',
+            'academic_background'            => 'nullable|string',
+            'certifications'                 => 'nullable|string',
+            'professional_memberships'       => 'nullable|string',
+            'previous_roles'                 => 'nullable|string',
+            'promotion_history'              => 'nullable|string',
+            'application_id'                 => 'nullable|exists:applications,id',
+            'user_id'                        => 'nullable|exists:users,id|unique:staff_profiles,user_id',
+            'profile_photo'                  => 'nullable|image|max:2048',
         ]);
 
-        $validated['staff_profile_id'] = $staffProfile->id;
-        $validated['total_days']       = LeaveRequest::calculateWorkingDays(
-            $validated['start_date'],
-            $validated['end_date']
-        );
-        $validated['status']       = 'pending';
-        $validated['submitted_by'] = 'staff';
+        if ($request->hasFile('profile_photo')) {
+            $validated['profile_photo'] = $request->file('profile_photo')
+                ->store('staff_photos', 'public');
+        }
 
-        LeaveRequest::create($validated);
+        StaffProfile::create($validated);
 
-        return redirect()->route('my.leave.index')
-            ->with('success', 'Your leave request has been submitted and is awaiting approval.');
+        return redirect()->route('admin.staff.index')
+            ->with('success', "Staff profile for {$validated['full_name']} created successfully!");
     }
 
-    public function leaveShow(LeaveRequest $leave)
+    public function show(StaffProfile $staff)
     {
-        $staffProfile = $this->staffProfileOrFail();
-        abort_unless($leave->staff_profile_id === $staffProfile->id, 403);
-        return view('my.leave.show', compact('leave'));
+        $staff->load('application');
+        return view('admin.staff.show', compact('staff'));
     }
 
-    // =========================================================
-    // MY APPRAISALS
-    // =========================================================
-
-    public function appraisalIndex()
+    public function edit(StaffProfile $staff)
     {
-        $staffProfile = $this->staffProfileOrFail();
-        $appraisals   = $staffProfile->appraisals()->latest('due_date')->paginate(10);
-        return view('my.appraisals.index', compact('appraisals'));
+        $availableUsers = \App\Models\User::where(function ($q) use ($staff) {
+            $q->whereDoesntHave('staffProfile')
+              ->orWhere('id', $staff->user_id);
+        })->orderBy('name')->get();
+
+        return view('admin.staff.edit', compact('staff', 'availableUsers'));
     }
 
-    public function appraisalShow(\App\Models\Appraisal $appraisal)
+    public function update(Request $request, StaffProfile $staff)
     {
-        $staffProfile = $this->staffProfileOrFail();
-        abort_unless($appraisal->staff_profile_id === $staffProfile->id, 403);
-        return view('my.appraisals.show', compact('appraisal'));
-    }
-
-    public function appraisalFill(\App\Models\Appraisal $appraisal)
-    {
-        $staffProfile = $this->staffProfileOrFail();
-        abort_unless($appraisal->staff_profile_id === $staffProfile->id, 403);
-        abort_unless($appraisal->sent_to_employee_at, 403, 'This form has not been sent to you yet.');
-        return view('my.appraisals.fill', compact('appraisal'));
-    }
-
-    public function appraisalSave(Request $request, \App\Models\Appraisal $appraisal)
-    {
-        $staffProfile = $this->staffProfileOrFail();
-        abort_unless($appraisal->staff_profile_id === $staffProfile->id, 403);
-        abort_unless($appraisal->sent_to_employee_at, 403, 'This form has not been sent to you yet.');
-
         $validated = $request->validate([
-            'self_mission_statement'    => 'nullable|string',
-            'self_duties_understanding' => 'nullable|string',
-            'self_job_achievements'     => 'nullable|string',
-            'self_other_achievements'   => 'nullable|string',
-            'self_likes_dislikes'       => 'nullable|string',
-            'self_most_difficult'       => 'nullable|string',
-            'self_improvement_actions'  => 'nullable|string',
-            'employee_comments'         => 'nullable|string',
+            'full_name'                      => 'required|string|max:255',
+            'employee_id'                    => 'required|string|unique:staff_profiles,employee_id,' . $staff->id,
+            'email'                          => 'required|email|unique:staff_profiles,email,' . $staff->id,
+            'gender'                         => 'nullable|in:male,female,other',
+            'date_of_birth'                  => 'nullable|date|before:today',
+            'marital_status'                 => 'nullable|in:single,married,divorced,widowed',
+            'nationality'                    => 'nullable|string|max:100',
+            'phone_number'                   => 'nullable|string|max:20',
+            'residential_address'            => 'nullable|string',
+            'emergency_contact_name'         => 'nullable|string|max:255',
+            'emergency_contact_phone'        => 'nullable|string|max:20',
+            'emergency_contact_relationship' => 'nullable|string|max:100',
+            'job_title'                      => 'nullable|string|max:255',
+            'department'                     => 'nullable|string|max:100',
+            'location'                       => 'nullable|string|max:255',
+            'employment_type'                => 'nullable|in:full_time,part_time,contract,intern',
+            'date_of_hire'                   => 'nullable|date',
+            'status'                         => 'nullable|in:active,inactive,suspended,terminated',
+            'line_manager'                   => 'nullable|string|max:255',
+            'department_head'                => 'nullable|string|max:255',
+            'national_id'                    => 'nullable|string|max:100',
+            'tax_id'                         => 'nullable|string|max:100',
+            'pension_details'                => 'nullable|string|max:255',
+            'salary'                         => 'nullable|numeric|min:0',
+            'bank_name'                      => 'nullable|string|max:100',
+            'bank_account_number'            => 'nullable|string|max:50',
+            'academic_background'            => 'nullable|string',
+            'certifications'                 => 'nullable|string',
+            'professional_memberships'       => 'nullable|string',
+            'previous_roles'                 => 'nullable|string',
+            'promotion_history'              => 'nullable|string',
+            'user_id'                        => 'nullable|exists:users,id|unique:staff_profiles,user_id,' . $staff->id,
+            'profile_photo'                  => 'nullable|image|max:2048',
         ]);
 
-        $appraisal->recordEdit($staffProfile->full_name . ' (employee)');
-        $appraisal->fill($validated);
-        $appraisal->save();
+        if ($request->hasFile('profile_photo')) {
+            if ($staff->profile_photo) {
+                Storage::disk('public')->delete($staff->profile_photo);
+            }
+            $validated['profile_photo'] = $request->file('profile_photo')
+                ->store('staff_photos', 'public');
+        }
 
-        return redirect()->route('my.appraisals.show', $appraisal)
-            ->with('success', 'Your self-evaluation has been saved. ' . now()->format('M d, Y g:i A'));
+        $staff->update($validated);
+
+        return redirect()->route('admin.staff.show', $staff)
+            ->with('success', 'Staff profile updated successfully!');
     }
 
-    // =========================================================
-    // EMPLOYEE RULES (Handbook + Code of Conduct)
-    // =========================================================
-
-    public function employeeRules()
+    public function destroy(StaffProfile $staff)
     {
-        $this->staffProfileOrFail();
+        if ($staff->profile_photo) {
+            Storage::disk('public')->delete($staff->profile_photo);
+        }
 
-        $handbook      = \App\Models\EmployeeRule::where('type', 'handbook')->latest()->get();
-        $codeOfConduct = \App\Models\EmployeeRule::where('type', 'code_of_conduct')->latest()->get();
+        $name = $staff->full_name;
+        $staff->delete();
 
-        return view('my.employee-rules', compact('handbook', 'codeOfConduct'));
-    }
-
-    public function employeeRulesDownload(\App\Models\EmployeeRule $employeeRule)
-    {
-        $this->staffProfileOrFail();
-        return response()->file(storage_path('app/public/' . $employeeRule->file_path));
+        return redirect()->route('admin.staff.index')
+            ->with('success', "$name has been removed from the system.");
     }
 }
