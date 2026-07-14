@@ -1,11 +1,3 @@
-{{--
-    resources/views/admin/leave/create.blade.php
-
-    Leave Request — Create Page
-    HR submits a leave request on behalf of a staff member.
-    Staff member is selected from dropdown.
-    Approver is selected as either Line Manager or HR.
---}}
 @extends('layouts.app')
 
 @section('content')
@@ -14,153 +6,151 @@
     <a href="{{ route('admin.leave.index') }}" class="text-gray-500 hover:text-gray-700">
         <i class="fas fa-arrow-left"></i>
     </a>
-    <div>
-        <h1 class="text-3xl font-bold text-gray-900">New Leave Request</h1>
-        <p class="text-gray-500 mt-1">Submit a leave request on behalf of a staff member</p>
-    </div>
+    <h1 class="text-3xl font-bold text-gray-900">New Leave Request</h1>
 </div>
 
-<form method="POST" action="{{ route('admin.leave.store') }}">
-    @csrf
+@if($errors->any())
+    <div class="alert alert-danger mb-4">
+        <ul class="list-disc pl-5 text-sm">
+            @foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach
+        </ul>
+    </div>
+@endif
 
-    <div class="bg-white rounded-lg shadow mb-6">
-        <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
-            <h2 class="text-lg font-semibold text-gray-900">
-                <i class="fas fa-user mr-2 text-primary-600"></i>Staff Member & Leave Type
-            </h2>
-        </div>
-        <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-            {{-- Staff member dropdown — all active staff --}}
+    <div class="lg:col-span-2">
+        <form method="POST" action="{{ route('admin.leave.store') }}"
+              class="bg-white rounded-lg shadow p-6 space-y-5">
+            @csrf
+
             <div>
                 <label class="form-label">Staff Member <span class="text-red-500">*</span></label>
-                <select name="staff_profile_id"
-                        class="form-select @error('staff_profile_id') border-red-500 @enderror" required>
+                <select name="staff_profile_id" class="form-select" required>
                     <option value="">Select staff member</option>
-                    @foreach($staff as $member)
-                        <option value="{{ $member->id }}"
-                            {{ old('staff_profile_id') == $member->id ? 'selected' : '' }}>
-                            {{ $member->full_name }}
-                            @if($member->job_title) — {{ $member->job_title }} @endif
+                    @foreach($staff as $s)
+                        <option value="{{ $s->id }}" {{ old('staff_profile_id') == $s->id ? 'selected' : '' }}>
+                            {{ $s->full_name }} — {{ $s->department ?? 'No dept' }}
                         </option>
                     @endforeach
                 </select>
-                @error('staff_profile_id')
-                    <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                @enderror
             </div>
 
-            {{-- Leave type dropdown --}}
+            <div>
+                <label class="form-label">Staff Section</label>
+                <input type="text" name="staff_section" class="form-input"
+                       value="{{ old('staff_section') }}"
+                       placeholder="e.g. Finance, Operations, Sales">
+                <p class="text-xs text-gray-400 mt-1">Which section this staff member belongs to</p>
+            </div>
+
             <div>
                 <label class="form-label">Leave Type <span class="text-red-500">*</span></label>
-                <select name="leave_type"
-                        class="form-select @error('leave_type') border-red-500 @enderror" required>
-                    <option value="">Select type</option>
+                <select name="leave_type" class="form-select" required>
+                    <option value="">Select leave type</option>
                     @foreach([
-                        'annual'    => 'Annual Leave',
-                        'sick'      => 'Sick Leave',
-                        'casual'    => 'Casual Leave',
-                        'maternity' => 'Maternity Leave',
-                        'paternity' => 'Paternity Leave',
-                        'unpaid'    => 'Unpaid Leave',
+                        'annual'    => 'Annual Leave (21 days default)',
+                        'sick'      => 'Sick Leave (12 days default)',
+                        'casual'    => 'Casual Leave (5 days default)',
+                        'maternity' => 'Maternity Leave (90 days default)',
+                        'paternity' => 'Paternity Leave (5 days default)',
+                        'unpaid'    => 'Unpaid Leave (no limit)',
                     ] as $val => $label)
                         <option value="{{ $val }}" {{ old('leave_type') == $val ? 'selected' : '' }}>
                             {{ $label }}
                         </option>
                     @endforeach
                 </select>
-                @error('leave_type')
-                    <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                @enderror
             </div>
 
-            {{-- Start Date --}}
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="form-label">Start Date <span class="text-red-500">*</span></label>
+                    <input type="date" name="start_date" class="form-input"
+                           value="{{ old('start_date') }}" required>
+                </div>
+                <div>
+                    <label class="form-label">End Date <span class="text-red-500">*</span></label>
+                    <input type="date" name="end_date" class="form-input"
+                           value="{{ old('end_date') }}" required>
+                </div>
+            </div>
+
             <div>
-                <label class="form-label">Start Date <span class="text-red-500">*</span></label>
-                <input type="date" name="start_date"
-                       value="{{ old('start_date') }}"
-                       class="form-input @error('start_date') border-red-500 @enderror" required>
-                @error('start_date')
-                    <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                @enderror
-            </div>
-
-            {{-- End Date --}}
-            <div>
-                <label class="form-label">End Date <span class="text-red-500">*</span></label>
-                <input type="date" name="end_date"
-                       value="{{ old('end_date') }}"
-                       class="form-input @error('end_date') border-red-500 @enderror" required>
-                @error('end_date')
-                    <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                @enderror
-            </div>
-
-            {{-- Reason for leave --}}
-            <div class="md:col-span-2">
-                <label class="form-label">Reason for Leave</label>
-                <textarea name="reason" rows="3" class="form-input"
-                          placeholder="Optional — reason for the leave request">{{ old('reason') }}</textarea>
-            </div>
-
-        </div>
-    </div>
-
-    {{-- ===================================================
-        APPROVER SECTION
-        HR selects who approves — Line Manager or HR.
-        When Line Manager is selected, a text field appears
-        for the manager's name.
-    =================================================== --}}
-    <div class="bg-white rounded-lg shadow mb-6">
-        <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
-            <h2 class="text-lg font-semibold text-gray-900">
-                <i class="fas fa-user-check mr-2 text-primary-600"></i>Approver
-            </h2>
-        </div>
-        <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-
-            {{-- Who approves: Line Manager or HR --}}
-            <div>
-                <label class="form-label">Approver Type <span class="text-red-500">*</span></label>
-                <select name="approver_type" id="approver_type"
-                        class="form-select @error('approver_type') border-red-500 @enderror"
-                        required onchange="toggleApproverName()">
-                    <option value="">Select approver</option>
-                    <option value="line_manager" {{ old('approver_type') == 'line_manager' ? 'selected' : '' }}>
-                        Line Manager
-                    </option>
-                    <option value="hr" {{ old('approver_type') == 'hr' ? 'selected' : '' }}>
-                        HR / Admin
-                    </option>
+                <label class="form-label">Who Should Approve <span class="text-red-500">*</span></label>
+                <select name="approver_type" class="form-select" required>
+                    <option value="hr" {{ old('approver_type') == 'hr' ? 'selected' : '' }}>HR</option>
+                    <option value="line_manager" {{ old('approver_type') == 'line_manager' ? 'selected' : '' }}>Line Manager</option>
                 </select>
-                @error('approver_type')
-                    <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                @enderror
             </div>
 
-            {{-- Approver name — always required --}}
             <div>
                 <label class="form-label">Approver Name <span class="text-red-500">*</span></label>
-                <input type="text" name="approver_name" id="approver_name"
+                <input type="text" name="approver_name" class="form-input"
                        value="{{ old('approver_name') }}"
-                       class="form-input @error('approver_name') border-red-500 @enderror"
-                       placeholder="Enter approver's full name" required>
-                @error('approver_name')
-                    <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                @enderror
+                       placeholder="Full name of the approver" required>
             </div>
 
+            <div>
+                <label class="form-label">Reason for Leave</label>
+                <textarea name="reason" rows="3" class="form-textarea w-full"
+                          placeholder="Optional">{{ old('reason') }}</textarea>
+            </div>
+
+            <div>
+                <label class="form-label">HR Internal Notes</label>
+                <textarea name="hr_notes" rows="3" class="form-textarea w-full"
+                          placeholder="Internal notes — not visible to staff">{{ old('hr_notes') }}</textarea>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-2 border-t">
+                <a href="{{ route('admin.leave.index') }}" class="btn btn-outline">Cancel</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-paper-plane mr-2"></i> Submit Request
+                </button>
+            </div>
+        </form>
+    </div>
+
+    {{-- Sidebar --}}
+    <div class="space-y-4">
+        <div class="bg-white rounded-lg shadow p-5">
+            <h3 class="font-semibold text-gray-900 mb-3">
+                <i class="fas fa-info-circle text-blue-500 mr-2"></i>Default Allowances
+            </h3>
+            <div class="space-y-2">
+                <div class="flex justify-between p-2 rounded bg-blue-50 border border-blue-100">
+                    <span class="text-sm text-blue-800 font-medium">Annual</span>
+                    <span class="text-sm font-bold text-blue-700">21 days</span>
+                </div>
+                <div class="flex justify-between p-2 rounded bg-red-50 border border-red-100">
+                    <span class="text-sm text-red-800 font-medium">Sick</span>
+                    <span class="text-sm font-bold text-red-700">12 days</span>
+                </div>
+                <div class="flex justify-between p-2 rounded bg-yellow-50 border border-yellow-100">
+                    <span class="text-sm text-yellow-800 font-medium">Casual</span>
+                    <span class="text-sm font-bold text-yellow-700">5 days</span>
+                </div>
+                <div class="flex justify-between p-2 rounded bg-pink-50 border border-pink-100">
+                    <span class="text-sm text-pink-800 font-medium">Maternity</span>
+                    <span class="text-sm font-bold text-pink-700">90 days</span>
+                </div>
+                <div class="flex justify-between p-2 rounded bg-indigo-50 border border-indigo-100">
+                    <span class="text-sm text-indigo-800 font-medium">Paternity</span>
+                    <span class="text-sm font-bold text-indigo-700">5 days</span>
+                </div>
+                <div class="flex justify-between p-2 rounded bg-gray-50 border border-gray-200">
+                    <span class="text-sm text-gray-800 font-medium">Unpaid</span>
+                    <span class="text-sm font-bold text-gray-700">Unlimited</span>
+                </div>
+            </div>
+        </div>
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
+            <p class="font-semibold mb-1"><i class="fas fa-exclamation-triangle mr-1"></i>Note</p>
+            <p>Weekends are automatically excluded when calculating total working days.</p>
         </div>
     </div>
 
-    <div class="flex justify-end gap-4">
-        <a href="{{ route('admin.leave.index') }}" class="btn btn-outline">Cancel</a>
-        <button type="submit" class="btn btn-primary">
-            <i class="fas fa-paper-plane mr-2"></i> Submit Leave Request
-        </button>
-    </div>
-
-</form>
+</div>
 
 @endsection
