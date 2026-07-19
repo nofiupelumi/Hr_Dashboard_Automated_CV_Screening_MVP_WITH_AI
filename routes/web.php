@@ -4,32 +4,30 @@
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
-| All HTTP routes for the HR Dashboard are defined here.
-| Add new module imports and resource routes as modules are completed.
-|--------------------------------------------------------------------------
 */
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\KeywordSetController;
 use App\Http\Controllers\Admin\ApplicationController;
-use App\Http\Controllers\Admin\StaffProfileController;       // Module 1: Staff Profiles
-use App\Http\Controllers\Admin\LeaveRequestController;       // Module 2: Annual Leave
-use App\Http\Controllers\Admin\ComplianceController;         // Module 4: Compliance
-use App\Http\Controllers\Admin\AppraisalController;          // Module 5: Probation & Appraisals
-use App\Http\Controllers\Admin\AppraisalScheduleController;  // Yearly appraisal timetable
-use App\Http\Controllers\Admin\AttendanceController;         // Module 6: Absenteeism Tracking
-use App\Http\Controllers\Admin\ExitReportController;         // Module 7: Exit Reports
-use App\Http\Controllers\Admin\EmployeeRulesController;      // Employee Rules PDF (Handbook + Code of Conduct)
-use App\Http\Controllers\Admin\PensionController;            // Pension Records
+use App\Http\Controllers\Admin\StaffProfileController;
+use App\Http\Controllers\Admin\LeaveRequestController;
+use App\Http\Controllers\Admin\ComplianceController;
+use App\Http\Controllers\Admin\AppraisalController;
+use App\Http\Controllers\Admin\AppraisalScheduleController;
+use App\Http\Controllers\Admin\AttendanceController;
+use App\Http\Controllers\Admin\ExitReportController;
+use App\Http\Controllers\Admin\EmployeeRulesController;
+use App\Http\Controllers\Admin\PensionController;
+use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\ApplicationSubmissionController;
-use App\Http\Controllers\StaffPortalController;              // Staff self-service portal
+use App\Http\Controllers\StaffPortalController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 
 // -----------------------------------------------------------------------
-// PUBLIC ROUTES — No login required
+// PUBLIC ROUTES
 // -----------------------------------------------------------------------
 Route::get('/', [ApplicationSubmissionController::class, 'index'])->name('application.form');
 Route::post('/application', [ApplicationSubmissionController::class, 'store'])->name('application.store');
@@ -39,10 +37,7 @@ Route::get('/application/status/{application}', [ApplicationSubmissionController
 require __DIR__.'/auth.php';
 
 // -----------------------------------------------------------------------
-// STAFF PORTAL ROUTES — Any logged in user.
-// Non-HR/admin staff land here and can ONLY ever see/act on their own
-// Leave and Appraisal records. HR/admin also accessible but normally
-// uses /admin instead.
+// STAFF PORTAL ROUTES
 // -----------------------------------------------------------------------
 Route::middleware(['auth'])->prefix('my')->name('my.')->group(function () {
 
@@ -60,13 +55,17 @@ Route::middleware(['auth'])->prefix('my')->name('my.')->group(function () {
     Route::get('/appraisals/{appraisal}/fill', [StaffPortalController::class, 'appraisalFill'])->name('appraisals.fill');
     Route::post('/appraisals/{appraisal}/save', [StaffPortalController::class, 'appraisalSave'])->name('appraisals.save');
 
-    // Employee Rules PDF (staff view — read only, download only)
+    // Employee Rules PDF
     Route::get('/employee-rules', [StaffPortalController::class, 'employeeRules'])->name('employee-rules');
     Route::get('/employee-rules/{employeeRule}/download', [StaffPortalController::class, 'employeeRulesDownload'])->name('employee-rules.download');
+
+    // Staff changes their own password
+    Route::get('/password', function () { return view('my.change-password'); })->name('password');
+    Route::post('/password', [UserManagementController::class, 'updateOwnPassword'])->name('update-password');
 });
 
 // -----------------------------------------------------------------------
-// ADMIN ROUTES — Requires login + admin/HR role
+// ADMIN ROUTES
 // -----------------------------------------------------------------------
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
 
@@ -86,9 +85,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/leave/{leave}/approve', [LeaveRequestController::class, 'approve'])->name('leave.approve');
     Route::post('/leave/{leave}/reject',  [LeaveRequestController::class, 'reject'])->name('leave.reject');
 
-    // Module 3: KPI Tracking — disabled until KpiController & Kpi model are added to branch
-    // Route::resource('kpis', KpiController::class);
-
     // Module 4: Compliance Tracking
     Route::resource('compliance', ComplianceController::class);
 
@@ -96,7 +92,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::resource('appraisals', AppraisalController::class);
     Route::post('/appraisals/{appraisal}/send', [AppraisalController::class, 'sendForm'])->name('appraisals.send');
 
-    // Appraisal Schedule (yearly timetable — different each year)
+    // Appraisal Schedule
     Route::get('/appraisal-schedule', [AppraisalScheduleController::class, 'index'])->name('appraisal-schedule.index');
     Route::post('/appraisal-schedule', [AppraisalScheduleController::class, 'store'])->name('appraisal-schedule.store');
     Route::delete('/appraisal-schedule/{appraisalSchedule}', [AppraisalScheduleController::class, 'destroy'])->name('appraisal-schedule.destroy');
@@ -109,7 +105,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Module 7: Exit Reports
     Route::resource('exit-reports', ExitReportController::class);
 
-    // Employee Rules PDF (HR uploads Handbook + Code of Conduct, staff get notified)
+    // Employee Rules PDF
     Route::get('/employee-rules', [EmployeeRulesController::class, 'index'])->name('employee-rules.index');
     Route::post('/employee-rules', [EmployeeRulesController::class, 'store'])->name('employee-rules.store');
     Route::get('/employee-rules/{employeeRule}/download', [EmployeeRulesController::class, 'download'])->name('employee-rules.download');
@@ -118,6 +114,16 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     // Pension Records
     Route::resource('pension', PensionController::class);
+
+    // User Accounts — approve registrations, change passwords
+    Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
+    Route::post('/users/{user}/approve', [UserManagementController::class, 'approve'])->name('users.approve');
+    Route::post('/users/{user}/suspend', [UserManagementController::class, 'suspend'])->name('users.suspend');
+    Route::post('/users/{user}/reactivate', [UserManagementController::class, 'reactivate'])->name('users.reactivate');
+    Route::get('/users/own-password', [UserManagementController::class, 'editOwnPassword'])->name('users.own-password');
+    Route::post('/users/own-password', [UserManagementController::class, 'updateOwnPassword'])->name('users.update-own-password');
+    Route::get('/users/{user}/password', [UserManagementController::class, 'editPassword'])->name('users.edit-password');
+    Route::post('/users/{user}/password', [UserManagementController::class, 'updatePassword'])->name('users.update-password');
 
     // CV Applications
     Route::get('/applications', [ApplicationController::class, 'index'])->name('applications.index');
@@ -143,6 +149,5 @@ Route::get('/health', function () {
         'status'    => 'healthy',
         'timestamp' => now(),
         'database'  => DB::connection()->getPdo() ? 'connected' : 'disconnected',
-        'queue'     => Cache::store('redis')->ping() ? 'connected' : 'disconnected',
     ]);
 });
