@@ -115,6 +115,9 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     // Pension Records
     Route::resource('pension', PensionController::class);
 
+    // Activity Log
+    Route::get('/activity-log', [App\Http\Controllers\Admin\ActivityLogController::class, 'index'])->name('activity-log.index');
+
     // User Accounts — approve registrations, change passwords
     Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
     Route::post('/users/{user}/approve', [UserManagementController::class, 'approve'])->name('users.approve');

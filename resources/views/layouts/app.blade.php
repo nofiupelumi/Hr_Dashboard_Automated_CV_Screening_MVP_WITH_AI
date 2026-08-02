@@ -17,11 +17,6 @@
         <div class="flex">
 
             @if(Auth::user()->hasAdminPrivileges())
-                <!-- =====================================================
-                    HR / ADMIN SIDEBAR NAVIGATION
-                    Add new module links here as each module is completed.
-                    Modules not yet added to the branch are commented out.
-                ===================================================== -->
                 <nav class="sidebar w-64 flex-shrink-0">
                     <div class="sticky top-0 p-6 overflow-y-auto" style="max-height:100vh;">
 
@@ -32,7 +27,6 @@
 
                         <ul class="space-y-2">
 
-                            <!-- Dashboard -->
                             <li>
                                 <a href="{{ route('admin.dashboard') }}"
                                    class="nav-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
@@ -40,7 +34,6 @@
                                 </a>
                             </li>
 
-                            <!-- Job Positions -->
                             <li>
                                 <a href="{{ route('admin.keyword-sets.index') }}"
                                    class="nav-link {{ request()->routeIs('admin.keyword-sets.*') ? 'active' : '' }}">
@@ -48,7 +41,6 @@
                                 </a>
                             </li>
 
-                            <!-- CV Applications -->
                             <li>
                                 <a href="{{ route('admin.applications.index') }}"
                                    class="nav-link {{ request()->routeIs('admin.applications.*') ? 'active' : '' }}">
@@ -56,7 +48,6 @@
                                 </a>
                             </li>
 
-                            <!-- MODULE 1: Staff Profiles -->
                             <li>
                                 <a href="{{ route('admin.staff.index') }}"
                                    class="nav-link {{ request()->routeIs('admin.staff.*') ? 'active' : '' }}">
@@ -64,7 +55,6 @@
                                 </a>
                             </li>
 
-                            <!-- MODULE 2: Annual Leave -->
                             <li>
                                 <a href="{{ route('admin.leave.index') }}"
                                    class="nav-link {{ request()->routeIs('admin.leave.*') ? 'active' : '' }}">
@@ -72,19 +62,6 @@
                                 </a>
                             </li>
 
-                            {{--
-                            MODULE 3: KPI Tracking
-                            Disabled — KpiController and Kpi model not yet on this branch.
-                            Uncomment once Kpi.php, KpiController.php, migration and views are added.
-                            <li>
-                                <a href="{{ route('admin.kpis.index') }}"
-                                   class="nav-link {{ request()->routeIs('admin.kpis.*') ? 'active' : '' }}">
-                                    <i class="fas fa-chart-line mr-3"></i> KPI Tracking
-                                </a>
-                            </li>
-                            --}}
-
-                            <!-- MODULE 4: Compliance -->
                             <li>
                                 <a href="{{ route('admin.compliance.index') }}"
                                    class="nav-link {{ request()->routeIs('admin.compliance.*') ? 'active' : '' }}">
@@ -92,21 +69,13 @@
                                 </a>
                             </li>
 
-                            <!-- MODULE 5: Appraisals -->
-                            <!-- <li>
-                                <a href="{{ route('admin.appraisals.index') }}"
-                                   class="nav-link {{ request()->routeIs('admin.appraisals.*') ? 'active' : '' }}">
-                                    <i class="fas fa-clipboard-list mr-3"></i> Appraisals
-                                </a>
-                            </li> -->
-
-                            <!-- MODULE 5: Appraisals -->
                             <li>
                                 <a href="{{ route('admin.appraisals.index') }}"
                                    class="nav-link {{ request()->routeIs('admin.appraisals.*') ? 'active' : '' }}">
                                     <i class="fas fa-clipboard-list mr-3"></i> Appraisals
                                 </a>
                             </li>
+
                             <li>
                                 <a href="{{ route('admin.appraisal-schedule.index') }}"
                                    class="nav-link {{ request()->routeIs('admin.appraisal-schedule.*') ? 'active' : '' }}">
@@ -114,7 +83,6 @@
                                 </a>
                             </li>
 
-                            <!-- MODULE 6: Absenteeism -->
                             <li>
                                 <a href="{{ route('admin.attendance.index') }}"
                                    class="nav-link {{ request()->routeIs('admin.attendance.*') ? 'active' : '' }}">
@@ -122,7 +90,6 @@
                                 </a>
                             </li>
 
-                            <!-- MODULE 7: Exit Reports -->
                             <li>
                                 <a href="{{ route('admin.exit-reports.index') }}"
                                    class="nav-link {{ request()->routeIs('admin.exit-reports.*') ? 'active' : '' }}">
@@ -130,13 +97,6 @@
                                 </a>
                             </li>
 
-                            <li class="pt-4 border-t border-primary-700 mt-4">
-                                <a href="{{ url('/') }}" target="_blank" class="nav-link">
-                                    <i class="fas fa-external-link-alt mr-3"></i> View Application Form
-                                </a>
-                            </li>
-
-                            <!-- Employee Rules PDF -->
                             <li>
                                 <a href="{{ route('admin.employee-rules.index') }}"
                                    class="nav-link {{ request()->routeIs('admin.employee-rules.*') ? 'active' : '' }}">
@@ -144,11 +104,41 @@
                                 </a>
                             </li>
 
-                            <!-- Pension Records -->
                             <li>
                                 <a href="{{ route('admin.pension.index') }}"
                                    class="nav-link {{ request()->routeIs('admin.pension.*') ? 'active' : '' }}">
                                     <i class="fas fa-shield-alt mr-3"></i> Pension
+                                </a>
+                            </li>
+
+                            <li>
+                                <a href="{{ route('admin.users.index') }}"
+                                   class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
+                                    <i class="fas fa-user-cog mr-3"></i> User Accounts
+                                    @php try { $pendingCount = \App\Models\User::where('status','pending')->count(); } catch(\Exception $e) { $pendingCount = 0; } @endphp
+                                    @if($pendingCount > 0)
+                                        <span class="ml-auto bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-0.5 rounded-full">{{ $pendingCount }}</span>
+                                    @endif
+                                </a>
+                            </li>
+
+                            <li>
+                                <a href="{{ route('admin.users.own-password') }}"
+                                   class="nav-link {{ request()->routeIs('admin.users.own-password') ? 'active' : '' }}">
+                                    <i class="fas fa-key mr-3"></i> Change Password
+                                </a>
+                            </li>
+
+                            <li>
+                                <a href="{{ route('admin.activity-log.index') }}"
+                                   class="nav-link {{ request()->routeIs('admin.activity-log.*') ? 'active' : '' }}">
+                                    <i class="fas fa-history mr-3"></i> Activity Log
+                                </a>
+                            </li>
+
+                            <li class="pt-4 border-t border-primary-700 mt-4">
+                                <a href="{{ url('/') }}" target="_blank" class="nav-link">
+                                    <i class="fas fa-external-link-alt mr-3"></i> View Application Form
                                 </a>
                             </li>
 
@@ -164,12 +154,8 @@
                         </ul>
                     </div>
                 </nav>
+
             @else
-                <!-- =====================================================
-                    STAFF (NON-HR) SIDEBAR NAVIGATION
-                    Regular staff only ever see their own Leave and
-                    Appraisal records — nothing from the HR admin area.
-                ===================================================== -->
                 <nav class="sidebar w-64 flex-shrink-0">
                     <div class="sticky top-0 p-6 overflow-y-auto" style="max-height:100vh;">
 
@@ -197,11 +183,16 @@
                                     <i class="fas fa-clipboard-list mr-3"></i> My Appraisals
                                 </a>
                             </li>
-
                             <li>
                                 <a href="{{ route('my.employee-rules') }}"
                                    class="nav-link {{ request()->routeIs('my.employee-rules*') ? 'active' : '' }}">
                                     <i class="fas fa-file-pdf mr-3"></i> Employee Rules PDF
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{{ route('my.password') }}"
+                                   class="nav-link {{ request()->routeIs('my.password') ? 'active' : '' }}">
+                                    <i class="fas fa-key mr-3"></i> Change Password
                                 </a>
                             </li>
 
